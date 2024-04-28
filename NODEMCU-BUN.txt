@@ -13,7 +13,7 @@ WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 const char *thing = "parcare";
 const char *thing_content = "nr_locuri_libere";
-int nr = 11; // Numărul de locuri libere
+int nr = 4; // Numărul de locuri libere
 
 
 void setup_wifi() {
