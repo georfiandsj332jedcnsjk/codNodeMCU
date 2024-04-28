@@ -88,14 +88,18 @@ void loop() {
   // char mqtt_message;
   // serializeJson(doc, mqtt_message);
 StaticJsonDocument<1024> doc;
+doc["Loc1"] = (distance1 < 10) ? "este ocupat" : "este liber";
+  doc["Loc2"] = (distance2 < 10) ? "este ocupat" : "este liber";
+ doc["Loc3"] = (distance3 < 10) ? "este ocupat" : "este liber";
+  doc["Loc4"] = (distance4 < 10) ? " este ocupat" : "este liber";
 
   // Add values to the document
-  doc["deviceId"] = "NodeMCU";
-  doc["siteId"] = "My Demo Lab";
-  doc["distance1"] = distance1;
-  doc["distance2"] = distance2;
-  doc["distance3"] = distance3;
-  doc["distance4"] = distance4;
+ // doc["deviceId"] = "NodeMCU";
+ // doc["siteId"] = "My Demo Lab";
+ // doc["distance1"] = distance1;
+ // doc["distance2"] = distance2;
+ // doc["distance3"] = distance3;
+ // doc["distance4"] = distance4;
 
   // Serialize JSON to a string
   String jsonString;
