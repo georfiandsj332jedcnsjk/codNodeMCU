@@ -2,44 +2,54 @@
 #include <PubSubClient.h>
 #include <SoftwareSerial.h>
 #include <ArduinoJson.h>
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#define RXp2 3
+#define TXp2 1
 
-const char * ssid = "DIGI-T8CD";
-const char * password = "62hGeg2r";
-const char * mqtt_broker = "broker.emqx.io";
-const char * publish_topic = "/EA4/licenta/parcare";
-const char * mqtt_username = "emqx";
-const char * mqtt_password = "public";
+const char *ssid = "DIGI-T8CD";
+const char *password = "62hGeg2r";
+const char *mqtt_broker = "broker.emqx.io";
+const char *publish_topic_prefix = "/EA4/licenta/parcare"; // Prefixul pentru subiectele MQTT
+const char *mqtt_username = "emqx";
+const char *mqtt_password = "public";
 const int mqtt_port = 1883;
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
-
-SoftwareSerial mySerial(4, 5); // RX, TX
-// Pinul 4 este pinul D2 (GPIO 4) pe placa NodeMCU.
-// Pinul 5 este pinul D1 (GPIO 5) pe placa NodeMCU.
+Serial2.begin (9600, SERIAL_8N1, RXp2, TXp2)
+WebServer server(80);
 const int threshold = 10;
 
 void setup_wifi() {
   delay(10);
-  Serial.print("\nConnecting to ");
-  Serial.println(ssid);
-  WiFi.mode(WIFI_STA);
+  Serial.println("\nConnecting to " + String(ssid));
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  randomSeed(micros());
-  Serial.println("\nWiFi connected\nIP address: ");
-  Serial.println(WiFi.localIP());
+  Serial.println("\nWiFi connected\nIP address: " + WiFi.localIP().toString());
 }
 
+void mqtt_callback(char *topic, byte *payload, unsigned int length) {
+  // Aici poți trata mesajele primite, dacă este necesar
+}
+void connectedToWiFi(){
+  
+}
 void reconnect() {
   while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
-    if (mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
+    if (mqttClient.connect(clientId.c_str())) {
       Serial.println("connected");
+      // Subscriem la toate subiectele pentru senzori
+      for (int i = 1; i <= 4; i++) {
+        String topic = String(publish_topic_prefix) + String(i);
+        mqttClient.subscribe(topic.c_str());
+      }
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
@@ -49,49 +59,36 @@ void reconnect() {
   }
 }
 
-void publishMessage(const char * topic, String payload, boolean retained) {
-  if (mqttClient.publish(topic, payload.c_str(), true))
-    Serial.println("Message published " + String(topic) + ": " + payload);
-}
-
 void setup() {
-  // Open serial communications and wait for port to open:
-  Serial.begin(115200);
-  
-  // Conectare la WiFi
+  Serial.begin(9600);
   setup_wifi();
-  
-  // Așteptăm conectarea Serial Monitor
-  while (!Serial) {
-    ; 
-  }
+  mqttClient.setServer(mqtt_broker, mqtt_port);
+  mqttClient.setCallback(mqtt_callback);
 }
 
 void loop() {
   if (!mqttClient.connected()) {
     reconnect();
   }
-
-  if (mySerial.available()) {
-    // Citim datele de la Arduino prin portul serial
-    String distanceData = mySerial.readStringUntil('\n');
-
-    // Afișăm mesajul în Serial Monitor
-    Serial.println("Mesaj primit de la Arduino: " + distanceData);
-
-    // Creăm un obiect JSON pentru a formata datele
-    StaticJsonDocument<1024> doc;
-    doc["distanceData"] = distanceData;
-
-    // Serializăm obiectul JSON într-un șir de caractere
-    String jsonString;
-    serializeJson(doc, jsonString);
-
-    // Publicăm datele către serverul MQTT
-    publishMessage(publish_topic, jsonString, true);
-
-    delay(1000); // Așteptăm 1 secundă între publicări
-  }
-
   mqttClient.loop();
+
+  for (int i = 1; i <= 4; i++) {
+    if (mySerial.available()) {
+      int distance = mySerial.parseInt(); // Citim distanta de la senzorul curent
+      
+      // Creăm un obiect JSON pentru starea senzorului
+      StaticJsonDocument<1024> doc;
+      doc["senzor"] = i;
+      doc["stare"] = (distance < threshold) ? "ocupat" : "liber";
+
+      // Serializăm obiectul JSON într-un șir de caractere
+      String jsonString;
+      serializeJson(doc, jsonString);
+
+      // Serialize JSON to a string
+  String jsonString;
+  serializeJson(doc, jsonString);
+  publishMessage("/EA4/licenta/parcare", jsonString, true);
+  delay(5000);}
+  }
 }
