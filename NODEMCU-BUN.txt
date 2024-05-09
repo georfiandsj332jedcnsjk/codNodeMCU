@@ -2,57 +2,37 @@
 #include <PubSubClient.h>
 #include <SoftwareSerial.h>
 #include <ArduinoJson.h>
-#include <Arduino.h>
-
-#define RXp2 3
-#define TXp2 1
 
 const char * ssid = "DIGI-T8CD";
 const char * password = "62hGeg2r";
 const char * mqtt_broker = "broker.emqx.io";
-const char * publish_topic_prefix = "/parcareanisia"; // Prefixul pentru subiectele MQTT
+const char * publish_topic = "/parcareanisia";
 const char * mqtt_username = "emqx";
 const char * mqtt_password = "public";
 const int mqtt_port = 1883;
-String client_id = "esp8266-client-es2-iot-test-1";
-
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
-
-SoftwareSerial Serial2(RXp2, TXp2); // Inițializare SoftwareSerial
-
-const int threshold = 10;
-
 void setup_wifi() {
   delay(10);
-  Serial.println("\nConnecting to " + String(ssid));
+  Serial.print("\nConnecting to ");
+  Serial.println(ssid);
+  WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("\nWiFi connected\nIP address: " + WiFi.localIP().toString());
+  randomSeed(micros());
+  Serial.println("\nWiFi connected\nIP address: ");
+  Serial.println(WiFi.localIP());
 }
-void publishMessage(const char * topic, String payload, boolean retained) {
-  if (mqttClient.publish(topic, payload.c_str(), true))
-    Serial.println("Message published " + String(topic) + ": " + payload);
-}
-void mqtt_callback(char * topic, byte * payload, unsigned int length) {
-  // Aici poți trata mesajele primite, dacă este necesar
-}
-
 void reconnect() {
   while (!mqttClient.connected()) {
     Serial.print("Attempting MQTT connection...");
     String clientId = "ESP8266Client-";
     clientId += String(random(0xffff), HEX);
-    if (mqttClient.connect(clientId.c_str())) {
+    if (mqttClient.connect(clientId.c_str(), mqtt_username, mqtt_password)) {
       Serial.println("connected");
-      // Subscriem la toate subiectele pentru senzori
-      for (int i = 1; i <= 4; i++) {
-        String topic = String(publish_topic_prefix) + String(i);
-        mqttClient.subscribe(topic.c_str());
-      }
     } else {
       Serial.print("failed, rc=");
       Serial.print(mqttClient.state());
@@ -61,49 +41,68 @@ void reconnect() {
     }
   }
 }
+void publishMessage(const char * topic, String payload, boolean retained) {
+  if (mqttClient.publish(topic, payload.c_str(), true))
+    Serial.println("Message published " + String(topic) + ": " + payload);
+}
 
+
+void readVector(int v[]) {
+  for (int i = 0; i < 4; i++) {
+    while (!Serial.available()) {} // Așteaptă până când sunt date disponibile pentru citire
+    v[i] = Serial.parseInt(); // Citeste fiecare element din vector
+    Serial.read(); // Consumă separatorul (spațiul) dintre elementele vectorului
+  }
+}
+int v[]={1,1,1,1};
 void setup() {
-  Serial.begin(9600);
-  // connecting to a WiFi network
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-      delay(500);
-      Serial.println("Connecting to WiFi..");
-  }
-  Serial.println("Connected to the WiFi network");
-  //connecting to a mqtt broker
+  Serial.begin(300);
+  while (!Serial) delay(1);
+  setup_wifi();
+ 
   mqttClient.setServer(mqtt_broker, mqtt_port);
-  while (!mqttClient.connected()) {
-      Serial.printf("The mqttClient %s connects to the public mqtt broker\n", client_id.c_str());
-      if (mqttClient.connect(client_id.c_str(), mqtt_username, mqtt_password)) {
-          Serial.println("Public emqx mqtt broker connected");
-      } else {
-          Serial.print("failed with state ");
-          Serial.print(mqttClient.state());
-          delay(2000);
-      }
-  }
 }
 void loop() {
   if (!mqttClient.connected()) {
     reconnect();
-  }
-  mqttClient.loop();
+  }	
 
-  for (int i = 1; i <= 4; i++) {
-    if (Serial2.available()) { // Corectare aici pentru a citi de la Serial2
-      int distance = Serial2.parseInt(); // Citim distanta de la senzorul curent
 
-      // Creăm un obiect JSON pentru starea senzorului
-      StaticJsonDocument <1024> doc;
-      doc["senzor"] = i;
-      doc["stare"] = (distance < threshold) ? "ocupat" : "liber";
-//doc["senzor"] = "elena ma omori";
-      // Serialize JSON to a string
-      String jsonString;
-      serializeJson(doc, jsonString);
-      publishMessage("/parcareanisia", jsonString, true);
-      delay(1000);
-    }
+  if(Serial.available()==1) 
+    readVector(v);
+  // Afiseaza vectorul citit
+  Serial.println("Vector citit:");
+  for (int i = 0; i < 4; i++) {
+    Serial.print(v[i]);
+    Serial.print(" ");
   }
+  Serial.println();
+
+/*
+
+  // DynamicJsonDocument doc(1024);
+  // doc["deviceId"] = "NodeMCU";
+  // doc["siteId"] = "My Demo Lab";
+  // doc["distance1"] = distance1;
+  // doc["distance2"] = distance2;
+  // doc["distance3"] = distance3;
+  // doc["distance4"] = distance4;
+  // char mqtt_message;
+  // serializeJson(doc, mqtt_message);
+StaticJsonDocument<1024> doc;
+
+  // Add values to the document
+  doc["deviceId"] = "NodeMCU";
+  doc["siteId"] = "My Demo Lab";
+  doc["distance1"] = distance1;
+  doc["distance2"] = distance2;
+  doc["distance3"] = distance3;
+  doc["distance4"] = distance4;
+
+  // Serialize JSON to a string
+  String jsonString;
+  serializeJson(doc, jsonString);
+  publishMessage("/parcareanisia", jsonString, true);
+  delay(5000);
+*/
 }
