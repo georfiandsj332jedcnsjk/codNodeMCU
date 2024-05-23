@@ -78,31 +78,17 @@ void loop() {
   }
   Serial.println();
 
-/*
 
-  // DynamicJsonDocument doc(1024);
-  // doc["deviceId"] = "NodeMCU";
-  // doc["siteId"] = "My Demo Lab";
-  // doc["distance1"] = distance1;
-  // doc["distance2"] = distance2;
-  // doc["distance3"] = distance3;
-  // doc["distance4"] = distance4;
-  // char mqtt_message;
-  // serializeJson(doc, mqtt_message);
-StaticJsonDocument<1024> doc;
+StaticJsonDocument<16384> doc;
 
-  // Add values to the document
-  doc["deviceId"] = "NodeMCU";
-  doc["siteId"] = "My Demo Lab";
-  doc["distance1"] = distance1;
-  doc["distance2"] = distance2;
-  doc["distance3"] = distance3;
-  doc["distance4"] = distance4;
-
+    doc["loc1"]=v[0];
+     doc["loc2"]=v[1];
+     doc["loc3"]=v[2];
+     doc["loc4"]=v[3];
   // Serialize JSON to a string
   String jsonString;
   serializeJson(doc, jsonString);
   publishMessage("/parcareanisia", jsonString, true);
   delay(5000);
-*/
+
 }
