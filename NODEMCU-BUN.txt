@@ -12,6 +12,7 @@ const char * mqtt_password = "public";
 const int mqtt_port = 1883;
 WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
+SoftwareSerial espSerial(16, 5);
 void setup_wifi() {
   delay(10);
   Serial.print("\nConnecting to ");
@@ -63,20 +64,26 @@ void setup() {
   mqttClient.setServer(mqtt_broker, mqtt_port);
 }
 void loop() {
+  Serial.flush();
   if (!mqttClient.connected()) {
     reconnect();
   }	
 
 
-  if(Serial.available()==1) 
-    readVector(v);
-  // Afiseaza vectorul citit
+for (int i = 0; i < 4; i++) {
+    if(Serial.available()) {// Așteaptă până când sunt date disponibile pentru citire
+    v[i] = Serial.parseInt(); // Citeste fiecare element din vector
+    Serial.read(); // Consumă separatorul (spațiul) dintre elementele vectorului
+  }
+
+}
+Serial.flush();
   Serial.println("Vector citit:");
   for (int i = 0; i < 4; i++) {
     Serial.print(v[i]);
     Serial.print(" ");
   }
-  Serial.println();
+  
 
 
 StaticJsonDocument<16384> doc;
